@@ -1,26 +1,24 @@
 # Render Blueprint — https://render.com/docs/blueprint-spec
 # Deploy: push this repo to GitHub, then in Render click New > Blueprint and point it here.
-# Render will read this file and provision the web service + persistent disk automatically.
 # Any envVar marked `sync: false` is NOT stored here — Render prompts you to type the real
 # value into its dashboard during setup, so no secret ever needs to touch this repo.
+#
+# FREE TIER — no persistent disk. The SQLite database resets to the seeded defaults on every
+# redeploy, and the free plan also spins the service down after ~15 min of no traffic (the first
+# request after a sleep takes 30-60s to wake it back up). Fine for letting someone try the app;
+# switch `plan` to `starter` and add a `disk:` block back if campaigns need to actually persist.
 
 services:
   - type: web
     name: campaignai
     runtime: node
-    plan: starter # disks require Starter or above — the free plan does not support persistent disks
+    plan: free
     buildCommand: npm install && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
-    disk:
-      name: campaignai-data
-      mountPath: /var/data
-      sizeGB: 1
     envVars:
       - key: NODE_ENV
         value: production
-      - key: DATA_DIR
-        value: /var/data
       - key: SESSION_SECRET
         generateValue: true # Render generates and stores a random secret — you never see or set this
       - key: GEMINI_API_KEY
