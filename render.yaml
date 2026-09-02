@@ -1,0 +1,37 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+# Deploy: push this repo to GitHub, then in Render click New > Blueprint and point it here.
+# Render will read this file and provision the web service + persistent disk automatically.
+# Any envVar marked `sync: false` is NOT stored here — Render prompts you to type the real
+# value into its dashboard during setup, so no secret ever needs to touch this repo.
+
+services:
+  - type: web
+    name: campaignai
+    runtime: node
+    plan: starter # disks require Starter or above — the free plan does not support persistent disks
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    disk:
+      name: campaignai-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATA_DIR
+        value: /var/data
+      - key: SESSION_SECRET
+        generateValue: true # Render generates and stores a random secret — you never see or set this
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: CLAUDE_MODEL
+        value: claude-sonnet-5
+      - key: AUTH_USERNAME
+        sync: false
+      - key: AUTH_PASSWORD_HASH
+        sync: false
+      - key: NOTIFY_WEBHOOK_URL
+        sync: false

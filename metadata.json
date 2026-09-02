@@ -1,0 +1,6 @@
+{
+  "name": "Vendox AI - Multi-Brand Campaign Generator",
+  "description": "Enterprise AI Content & Campaign Generator for Vendox group brands (SMS & Web Push notifications).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
