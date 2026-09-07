@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { X, Sparkles, Calendar as CalendarIcon, Tag, Layers, Check, Loader2, DollarSign, Gift, Zap, Repeat, ChevronLeft, ChevronRight, Wand2, Clock, Search, BookmarkPlus, History, AlertCircle } from "lucide-react";
+import { X, Sparkles, Calendar as CalendarIcon, Tag, Layers, Check, Loader2, DollarSign, Gift, Zap, Repeat, ChevronLeft, ChevronRight, Wand2, Clock, Search, BookmarkPlus, History, AlertCircle, Lock, Trash2, MessageSquare, Smartphone } from "lucide-react";
 import { Brand, CampaignConfig, CampaignType, PromoCodeRecord } from "../types";
 import { campaignTemplatesApi, CampaignTemplate } from "../lib/api";
 import { useToast } from "./Toast";
@@ -104,11 +104,6 @@ export const CampaignGeneratorModal: React.FC<CampaignGeneratorModalProps> = ({
   // so the batch-output preview and step gating below both reflect what the user actually picked.
   const [selectedBrandIds, setSelectedBrandIds] = useState<string[]>([]);
   const [customNotes, setCustomNotes] = useState("Focus on salary reward sentiment, flash vouchers, and high-converting urgency CTAs.");
-
-  // AI Promo Code Suggestion state
-  const [isGeneratingCodes, setIsGeneratingCodes] = useState(false);
-  const [showCodeSuggestionsModal, setShowCodeSuggestionsModal] = useState(false);
-  const [aiCodeSuggestions, setAiCodeSuggestions] = useState<any[]>([]);
 
   const [aiProvider, setAiProvider] = useState<"gemini" | "claude">("gemini");
   const [hookVariantCount, setHookVariantCount] = useState<number>(1);
@@ -433,40 +428,6 @@ export const CampaignGeneratorModal: React.FC<CampaignGeneratorModalProps> = ({
     }
   };
 
-  // AI Generate Promo Codes Call
-  const handleAiGeneratePromoCodes = async () => {
-    setIsGeneratingCodes(true);
-    setShowCodeSuggestionsModal(true);
-    try {
-      const selectedBrandsList = brands.filter((b) => selectedBrandIds.includes(b.id));
-      const shortCodes = selectedBrandsList.map((b) => b.shortCode || b.name);
-
-      const response = await fetch("/api/campaign/generate-promocodes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          campaignType,
-          campaignTitle: title,
-          monthYear,
-          brandShortCodes: shortCodes,
-          discountDetails,
-        }),
-      });
-
-      const resData = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(resData.error || "Failed to generate promo codes");
-      if (resData.success && resData.suggestions) {
-        setAiCodeSuggestions(resData.suggestions);
-      }
-    } catch (err: any) {
-      console.error("AI Promo Code generation error:", err);
-      toast.error(err.message || "Failed to generate promo code suggestions.");
-      setShowCodeSuggestionsModal(false);
-    } finally {
-      setIsGeneratingCodes(false);
-    }
-  };
-
   // Calculate Scheduled Date Strings based on Start Date & Duration or Custom Dates
   const getScheduledDates = () => {
     if (scheduleMode === "custom_dates") {
@@ -626,6 +587,30 @@ export const CampaignGeneratorModal: React.FC<CampaignGeneratorModalProps> = ({
 
   if (!isOpen && !embedded) return null;
 
+  // One consistent header shape for every step — previously each step used a different element
+  // (a bare <label>, an <h3>, or nothing at all for Step 5), which read as inconsistent/unpolished.
+  const StepHeader: React.FC<{ icon: React.ReactNode; step: number; title: string; subtitle?: string; action?: React.ReactNode }> = ({
+    icon,
+    step,
+    title,
+    subtitle,
+    action,
+  }) => (
+    <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-800">
+      <div className="flex items-center gap-2.5 min-w-0">
+        <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+          {icon}
+        </div>
+        <div className="min-w-0">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 block">Step {step} of 5</span>
+          <h3 className="text-sm font-bold text-white truncate">{title}</h3>
+          {subtitle && <p className="text-[11px] text-slate-400">{subtitle}</p>}
+        </div>
+      </div>
+      {action && <div className="shrink-0">{action}</div>}
+    </div>
+  );
+
   return (
     <div
       onClick={(e) => {
@@ -725,11 +710,11 @@ export const CampaignGeneratorModal: React.FC<CampaignGeneratorModalProps> = ({
         <div className="px-6 pt-4 bg-slate-950/60">
           <div className="bg-slate-900 border border-slate-800 p-1.5 rounded-2xl flex items-center justify-between gap-1 shadow-inner overflow-x-auto">
             {[
-              { step: 1, name: "1. Basics & Type", icon: "📋" },
-              { step: 2, name: "2. Target Brands", icon: "🏢" },
-              { step: 3, name: "3. Schedule & Slots", icon: "📅" },
-              { step: 4, name: "4. Codes & Offers", icon: "🏷️" },
-              { step: 5, name: "5. Quality SOP", icon: "🚀" },
+              { step: 1, name: "1. Basics & Type", Icon: Layers },
+              { step: 2, name: "2. Target Brands", Icon: Search },
+              { step: 3, name: "3. Schedule & Slots", Icon: CalendarIcon },
+              { step: 4, name: "4. Codes & Offers", Icon: Tag },
+              { step: 5, name: "5. Quality SOP", Icon: Zap },
             ].map((s) => {
               const isLocked = s.step > maxUnlockedStep;
               return (
@@ -750,9 +735,9 @@ export const CampaignGeneratorModal: React.FC<CampaignGeneratorModalProps> = ({
                           : "bg-slate-950/80 text-slate-400 border border-slate-800 hover:text-slate-200")
                   }`}
                 >
-                  <span>{isLocked ? "🔒" : s.icon}</span>
+                  {isLocked ? <Lock className="w-3.5 h-3.5" /> : <s.Icon className="w-3.5 h-3.5" />}
                   <span>{s.name}</span>
-                  {currentStep > s.step && !isLocked && <span className="text-[10px] text-emerald-400 font-black">✓</span>}
+                  {currentStep > s.step && !isLocked && <Check className="w-3.5 h-3.5 text-emerald-400" />}
                 </button>
               );
             })}
@@ -788,9 +773,8 @@ export const CampaignGeneratorModal: React.FC<CampaignGeneratorModalProps> = ({
                 </div>
               )}
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-amber-400 mb-2">
-                  Step 1 of 5: Choose Campaign Objective & Type
-                </label>
+                <StepHeader icon={<Layers className="w-4 h-4" />} step={1} title="Choose Campaign Objective & Type" />
+                <div className="h-2" />
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
               {/* Payday Option */}
               <button
@@ -896,7 +880,7 @@ export const CampaignGeneratorModal: React.FC<CampaignGeneratorModalProps> = ({
                 </div>
                 <h4 className={`text-sm font-bold ${isNoPromoCode ? "text-white" : "text-slate-100"}`}>Organic Campaign</h4>
                 <p className={`text-[11px] mt-1 leading-relaxed ${isNoPromoCode ? "text-slate-300" : "text-slate-400"}`}>
-                  🌿 No promo code required! Pure brand story &amp; CTA links.
+                  No promo code required. Pure brand story &amp; CTA links.
                 </p>
               </button>
 
@@ -1019,7 +1003,8 @@ export const CampaignGeneratorModal: React.FC<CampaignGeneratorModalProps> = ({
           </div>
 
           <p className="text-[11px] text-slate-500 flex items-center gap-1.5">
-            💡 This campaign type's mandatory narrative/SOP rules are set once for everyone under{" "}
+            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+            This campaign type's mandatory narrative/SOP rules are set once for everyone under{" "}
             <strong className="text-slate-300">Manage → Campaign SOP</strong> — no need to re-enter them per campaign.
           </p>
           </div>
@@ -1028,15 +1013,12 @@ export const CampaignGeneratorModal: React.FC<CampaignGeneratorModalProps> = ({
           {/* Step 2: Target Brands Selection (Multi-Company Support) */}
           {currentStep === 2 && (
             <div className="bg-slate-950/80 p-4 rounded-2xl border border-slate-800 space-y-3 animate-fadeIn">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <label className="text-xs font-semibold uppercase tracking-wider text-amber-400 block">
-                    Step 2 of 5: Select Target Brands across Companies
-                  </label>
-                <p className="text-[11px] text-slate-400">
-                  Select any combination of brands across <strong>WDF</strong>, <strong>WLM</strong>, and <strong>WAW</strong>! ({selectedBrandIds.length} / {brands.length} Selected)
-                </p>
-              </div>
+              <StepHeader
+                icon={<Search className="w-4 h-4" />}
+                step={2}
+                title="Select Target Brands across Companies"
+                subtitle={`Select any combination of brands across WDF, WLM, and WAW — ${selectedBrandIds.length} / ${brands.length} selected`}
+              />
 
               {/* Multi-Company Group Toggles */}
               <div className="flex flex-wrap items-center gap-1.5 text-xs">
@@ -1082,7 +1064,6 @@ export const CampaignGeneratorModal: React.FC<CampaignGeneratorModalProps> = ({
                   <span className="text-[10px] opacity-75">({brands.filter((b) => b.categoryGroup === "WAW").length})</span>
                 </button>
               </div>
-            </div>
 
             {/* Filter Search Bar & Company Filter Chips */}
             <div className="flex flex-col sm:flex-row items-center gap-2 pt-1">
@@ -1137,14 +1118,14 @@ export const CampaignGeneratorModal: React.FC<CampaignGeneratorModalProps> = ({
                       type="button"
                       key={b.id}
                       onClick={() => toggleBrand(b.id)}
+                      style={{ borderLeftWidth: 3, borderLeftColor: isSelected ? (b.brandColor || "#f59e0b") : "transparent" }}
                       className={`p-2 rounded-xl border text-left transition-all relative flex flex-col justify-between ${
                         isSelected
                           ? "bg-slate-800 border-amber-500/80 text-white shadow-md ring-1 ring-amber-500/40"
                           : "bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200"
                       }`}
                     >
-                      <div className="flex items-center justify-between gap-1 mb-1">
-                        <span className="text-sm">{b.logoEmoji}</span>
+                      <div className="flex items-center justify-end mb-1">
                         <input
                           type="checkbox"
                           checked={isSelected}
@@ -1152,7 +1133,7 @@ export const CampaignGeneratorModal: React.FC<CampaignGeneratorModalProps> = ({
                           className="rounded border-slate-700 bg-slate-950 text-amber-500 focus:ring-amber-500 w-3.5 h-3.5"
                         />
                       </div>
-                      <span className="text-xs font-bold truncate block">{b.name}</span>
+                      <span className="text-sm font-bold truncate block">{b.name}</span>
                       <div className="flex items-center gap-1 mt-1">
                         {b.shortCode && (
                           <span className="text-[9px] font-mono font-bold text-amber-400 bg-amber-950/80 px-1 rounded">
@@ -1183,42 +1164,43 @@ export const CampaignGeneratorModal: React.FC<CampaignGeneratorModalProps> = ({
           {/* Step 3: Interactive Calendar Schedule & Dates */}
           {currentStep === 3 && (
             <div className="bg-slate-950/80 p-4 rounded-2xl border border-slate-800 space-y-4 animate-fadeIn">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-amber-400 flex items-center gap-2">
-                <CalendarIcon className="w-4 h-4 text-amber-400" />
-                3. Schedule Mode & Launch Dates
-              </h3>
-              <div className="flex items-center gap-1.5 bg-slate-900 p-1 rounded-xl border border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setScheduleMode("consecutive")}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                    scheduleMode === "consecutive"
-                      ? "bg-amber-500 text-slate-950 shadow"
-                      : "text-slate-400 hover:text-white"
-                  }`}
-                >
-                  Consecutive Days
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setScheduleMode("custom_dates")}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                    scheduleMode === "custom_dates"
-                      ? "bg-emerald-500 text-slate-950 shadow"
-                      : "text-slate-400 hover:text-white"
-                  }`}
-                >
-                  Custom Dates (e.g. 21/8, 25/8, 29/8)
-                </button>
-              </div>
-            </div>
+            <StepHeader
+              icon={<CalendarIcon className="w-4 h-4" />}
+              step={3}
+              title="Schedule Mode & Launch Dates"
+              action={
+                <div className="flex items-center gap-1.5 bg-slate-900 p-1 rounded-xl border border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setScheduleMode("consecutive")}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                      scheduleMode === "consecutive"
+                        ? "bg-amber-500 text-slate-950 shadow"
+                        : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    Consecutive Days
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setScheduleMode("custom_dates")}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                      scheduleMode === "custom_dates"
+                        ? "bg-emerald-500 text-slate-950 shadow"
+                        : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    Custom Dates (e.g. 21/8, 25/8, 29/8)
+                  </button>
+                </div>
+              }
+            />
 
             {/* Custom Dates Controls Banner */}
             {scheduleMode === "custom_dates" && (
               <div className="bg-emerald-950/40 border border-emerald-800/60 p-3 rounded-xl space-y-2">
                 <div className="flex items-center justify-between text-xs font-bold text-emerald-300">
-                  <span>📅 Custom Non-Consecutive Campaign Dates ({customDatesList.length} Selected Dates)</span>
+                  <span>Custom Non-Consecutive Campaign Dates ({customDatesList.length} Selected Dates)</span>
                   <span className="text-[10px] text-emerald-400/80 font-normal">
                     Click calendar dates below or type dates to add/remove
                   </span>
@@ -1430,19 +1412,7 @@ export const CampaignGeneratorModal: React.FC<CampaignGeneratorModalProps> = ({
           {/* Step 4: Promo Code & Campaign Mechanics */}
           {currentStep === 4 && (
             <div className="bg-slate-950/80 p-4 rounded-2xl border border-slate-800 space-y-4 animate-fadeIn">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-amber-400 flex items-center justify-between">
-              <span>4. Campaign Mechanics & Promo Settings</span>
-              {!isNoPromoCode && (
-                <button
-                  type="button"
-                  onClick={handleAiGeneratePromoCodes}
-                  className="px-3 py-1 bg-gradient-to-r from-amber-500 to-rose-500 text-slate-950 font-bold text-xs rounded-lg flex items-center gap-1.5 shadow hover:opacity-90"
-                >
-                  <Wand2 className="w-3.5 h-3.5 fill-slate-950" />
-                  <span>✨ AI Generate Promo Codes</span>
-                </button>
-              )}
-            </h3>
+            <StepHeader icon={<Tag className="w-4 h-4" />} step={4} title="Campaign Mechanics & Promo Settings" />
 
             {/* Promo Code Mode Toggle Header */}
             <div className="bg-slate-900/90 p-3.5 rounded-xl border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
@@ -1450,8 +1420,8 @@ export const CampaignGeneratorModal: React.FC<CampaignGeneratorModalProps> = ({
                 <span className="text-xs font-bold text-white block">Promo Code & Discount Mode</span>
                 <span className="text-[11px] text-slate-400">
                   {isNoPromoCode
-                    ? "🌿 Organic Mode is Active: No promo code or voucher discount required."
-                    : "💰 Promotional Sale Mode: Custom voucher codes and discount calculations enabled."}
+                    ? "Organic Mode is active: no promo code or voucher discount required."
+                    : "Promotional Sale Mode: custom voucher codes and discount calculations enabled."}
                 </span>
               </div>
               <label className="flex items-center gap-2 cursor-pointer bg-slate-950 px-3.5 py-2 rounded-xl border border-slate-700 hover:border-amber-500/80 transition-all shrink-0">
@@ -1560,7 +1530,7 @@ export const CampaignGeneratorModal: React.FC<CampaignGeneratorModalProps> = ({
             ) : (
               <div className="bg-emerald-950/40 border border-emerald-800/60 p-3.5 rounded-xl text-xs text-emerald-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow">
                 <div>
-                  <span className="font-bold block text-emerald-300 text-sm">🌿 Organic Campaign Mode (No Discount / No Voucher)</span>
+                  <span className="font-bold block text-emerald-300 text-sm">Organic Campaign Mode (No Discount / No Voucher)</span>
                   <p className="text-[11px] text-slate-300 mt-0.5 leading-relaxed">
                     All generated captions will focus purely on brand storytelling, product highlights, and direct action links. <strong>No promo code or discount text</strong> will appear in the messages.
                   </p>
@@ -1668,6 +1638,8 @@ export const CampaignGeneratorModal: React.FC<CampaignGeneratorModalProps> = ({
           {/* Step 5: Quality SOP, Channels & Generation Review */}
           {currentStep === 5 && (
             <div className="space-y-4 animate-fadeIn">
+              <StepHeader icon={<Zap className="w-4 h-4" />} step={5} title="Quality SOP, Channels & Generation Review" />
+
               {/* SOP COMPLIANCE INSPECTION & VERIFICATION CHECKLIST */}
               <div className="md:col-span-2 bg-slate-950/90 border border-slate-800/90 rounded-xl p-4 space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-2.5">
@@ -1801,9 +1773,10 @@ export const CampaignGeneratorModal: React.FC<CampaignGeneratorModalProps> = ({
                       <button
                         type="button"
                         onClick={handleClearAllTimeSlots}
-                        className="px-2.5 py-1 bg-rose-950/60 hover:bg-rose-900 text-rose-300 rounded-lg border border-rose-800 text-[11px] font-bold transition-all"
+                        className="px-2.5 py-1 bg-rose-950/60 hover:bg-rose-900 text-rose-300 rounded-lg border border-rose-800 text-[11px] font-bold transition-all flex items-center gap-1"
                       >
-                        🗑️ Clear All Slots (Start Empty)
+                        <Trash2 className="w-3 h-3" />
+                        <span>Clear All Slots (Start Empty)</span>
                       </button>
                     )}
                   </div>
@@ -1830,8 +1803,9 @@ export const CampaignGeneratorModal: React.FC<CampaignGeneratorModalProps> = ({
                     ))}
                   </div>
                 ) : (
-                  <div className="bg-slate-900 p-2.5 rounded-lg border border-slate-800 text-xs text-amber-400 font-medium">
-                    ⚠️ No time slots set! Type your desired time below or click a quick time button to add.
+                  <div className="bg-slate-900 p-2.5 rounded-lg border border-slate-800 text-xs text-amber-400 font-medium flex items-center gap-1.5">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>No time slots set. Type your desired time below or click a quick time button to add.</span>
                   </div>
                 )}
 
@@ -1892,7 +1866,8 @@ export const CampaignGeneratorModal: React.FC<CampaignGeneratorModalProps> = ({
                         }`}
                       >
                         {isChecked && <Check className="w-3.5 h-3.5 text-amber-400" />}
-                        <span>{p === "SMS" ? "📱 SMS Messages" : "🔔 Web Push Notifications"}</span>
+                        {p === "SMS" ? <Smartphone className="w-3.5 h-3.5" /> : <MessageSquare className="w-3.5 h-3.5" />}
+                        <span>{p === "SMS" ? "SMS Messages" : "Web Push Notifications"}</span>
                       </button>
                     );
                   })}
@@ -1902,7 +1877,7 @@ export const CampaignGeneratorModal: React.FC<CampaignGeneratorModalProps> = ({
             {/* Content Output Language Selector */}
             <div className="bg-slate-900/90 p-3.5 rounded-xl border border-sky-500/30 space-y-2">
               <label className="block text-xs font-bold text-sky-300 uppercase tracking-wider flex items-center justify-between">
-                <span>🌐 Target Output Language</span>
+                <span>Target Output Language</span>
                 <span className="text-[10px] text-slate-400 font-normal">Choose generated content language</span>
               </label>
               <select
@@ -1926,7 +1901,7 @@ export const CampaignGeneratorModal: React.FC<CampaignGeneratorModalProps> = ({
                 className="w-full flex items-center justify-between text-xs font-semibold text-slate-300 hover:text-white"
               >
                 <span className="flex items-center gap-1.5">
-                  <span>📝 Optional Custom Directives &amp; Brand Notes</span>
+                  <span>Optional Custom Directives &amp; Brand Notes</span>
                   <span className="text-[10px] text-slate-500 font-normal">(No need to fill if standard payday/organic)</span>
                 </span>
                 <span className="text-amber-400 text-xs font-bold">{showCustomNotes ? "Hide ↑" : "Show / Add Notes +"}</span>
@@ -1943,58 +1918,6 @@ export const CampaignGeneratorModal: React.FC<CampaignGeneratorModalProps> = ({
               )}
             </div>
           </div>
-          )}
-
-          {/* AI Code Suggestions Popover / Modal */}
-          {showCodeSuggestionsModal && (
-            <div className="bg-slate-950 border border-amber-500/40 p-4 rounded-xl space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
-                  <Wand2 className="w-4 h-4 text-amber-400" />
-                  AI Suggested High-Converting Promo Codes
-                </h4>
-                <button
-                  type="button"
-                  onClick={() => setShowCodeSuggestionsModal(false)}
-                  className="text-slate-400 hover:text-white text-xs font-bold"
-                >
-                  Close
-                </button>
-              </div>
-
-              {isGeneratingCodes ? (
-                <div className="flex items-center justify-center py-6 gap-2 text-xs text-amber-300">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Gemini AI generating custom promo code ideas...</span>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {aiCodeSuggestions.map((sug, i) => (
-                    <button
-                      type="button"
-                      key={i}
-                      onClick={() => {
-                        setPromoCode(sug.code);
-                        if (sug.recommendedDiscount) setDiscountDetails(sug.recommendedDiscount);
-                        setShowCodeSuggestionsModal(false);
-                      }}
-                      className="p-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-amber-500/60 rounded-xl text-left transition-all group"
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-mono font-black text-sm text-emerald-400 group-hover:scale-105 transition-transform">
-                          {sug.code}
-                        </span>
-                        <span className="text-[10px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-bold">
-                          1-Click Apply
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-300 font-medium">{sug.tagline}</p>
-                      <p className="text-[10px] text-slate-400 mt-0.5">{sug.recommendedDiscount}</p>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
           )}
 
         </div>
