@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { X, Sparkles, Calendar as CalendarIcon, Tag, Layers, Check, Loader2, DollarSign, Gift, Zap, ChevronLeft, ChevronRight, Wand2, Clock, Search, BookmarkPlus, History, AlertCircle } from "lucide-react";
+import { X, Sparkles, Calendar as CalendarIcon, Tag, Layers, Check, Loader2, DollarSign, Gift, Zap, Repeat, ChevronLeft, ChevronRight, Wand2, Clock, Search, BookmarkPlus, History, AlertCircle } from "lucide-react";
 import { Brand, CampaignConfig, CampaignType, PromoCodeRecord } from "../types";
 import { campaignTemplatesApi, CampaignTemplate } from "../lib/api";
 import { useToast } from "./Toast";
@@ -398,6 +398,13 @@ export const CampaignGeneratorModal: React.FC<CampaignGeneratorModalProps> = ({
       setPromoCode("FIRSTLOOK20");
       setDiscountDetails("20% Early Bird Discount on All New Monthly Arrivals");
       setCustomNotes("Highlight fresh monthly styles/products, early bird privileges, trend inspiration, and lifestyle aesthetic.");
+    } else if (type === "reloan") {
+      setTitle("Reloan Aggressive Win-Back Campaign");
+      setDiscountType("percentage");
+      setDiscountValue(15);
+      setPromoCode("RELOAN15");
+      setDiscountDetails("15% Fee Discount on Your Next Loan + Priority Fast Approval");
+      setCustomNotes("Win back customers who already repaid a previous loan — high-frequency, high-urgency push to reapply. Encouraging tone throughout, never threatening or warning-style.");
     } else {
       setTitle("Custom Promotional Campaign");
       setDiscountType("amount");
@@ -784,7 +791,7 @@ export const CampaignGeneratorModal: React.FC<CampaignGeneratorModalProps> = ({
                 <label className="block text-xs font-semibold uppercase tracking-wider text-amber-400 mb-2">
                   Step 1 of 5: Choose Campaign Objective & Type
                 </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
               {/* Payday Option */}
               <button
                 type="button"
@@ -836,6 +843,33 @@ export const CampaignGeneratorModal: React.FC<CampaignGeneratorModalProps> = ({
                 <h4 className={`text-sm font-bold ${campaignType === "first_week" && !isNoPromoCode ? "text-white" : "text-slate-100"}`}>First Week Collection</h4>
                 <p className={`text-[11px] mt-1 leading-relaxed ${campaignType === "first_week" && !isNoPromoCode ? "text-slate-300" : "text-slate-400"}`}>
                   Monthly product drops &amp; early bird collection previews.
+                </p>
+              </button>
+
+              {/* Reloan Aggressive Win-Back Option */}
+              <button
+                type="button"
+                id="select-reloan-type-btn"
+                onClick={() => handleCampaignTypeChange("reloan")}
+                className={`p-3.5 rounded-2xl border text-left transition-all relative ${
+                  campaignType === "reloan" && !isNoPromoCode
+                    ? "bg-slate-800 border-amber-500/70 text-white shadow-md ring-1 ring-amber-500/30"
+                    : "bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700 hover:bg-slate-900"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className={`p-2 rounded-lg ${campaignType === "reloan" && !isNoPromoCode ? "bg-slate-800 text-rose-300" : "bg-slate-800 text-slate-300"}`}>
+                    <Repeat className="w-5 h-5" />
+                  </div>
+                  {campaignType === "reloan" && !isNoPromoCode && (
+                    <span className="bg-rose-400 text-slate-950 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                      SELECTED
+                    </span>
+                  )}
+                </div>
+                <h4 className={`text-sm font-bold ${campaignType === "reloan" && !isNoPromoCode ? "text-white" : "text-slate-100"}`}>Reloan Aggressive</h4>
+                <p className={`text-[11px] mt-1 leading-relaxed ${campaignType === "reloan" && !isNoPromoCode ? "text-slate-300" : "text-slate-400"}`}>
+                  High-urgency win-back push for repeat customers to reloan.
                 </p>
               </button>
 

@@ -4,9 +4,10 @@ import { ListOrdered, Save, RotateCcw } from "lucide-react";
 import { settingsApi } from "../lib/api";
 import { useToast } from "./Toast";
 
-const TYPES: { id: "payday" | "first_week" | "custom"; label: string }[] = [
+const TYPES: { id: "payday" | "first_week" | "reloan" | "custom"; label: string }[] = [
   { id: "payday", label: "Payday Sale" },
   { id: "first_week", label: "First Week Collection" },
+  { id: "reloan", label: "Reloan Aggressive" },
   { id: "custom", label: "Custom Campaign" },
 ];
 

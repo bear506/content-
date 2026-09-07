@@ -13,6 +13,7 @@ interface TemplatesPageProps {
 const CAMPAIGN_TYPE_LABELS: Record<string, string> = {
   payday: "Payday Sale",
   first_week: "First Week Collection",
+  reloan: "Reloan Aggressive",
   custom: "Custom Campaign",
 };
 

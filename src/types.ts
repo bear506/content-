@@ -15,7 +15,7 @@ export interface Brand {
   bannedWords?: string[]; // Words/phrases to avoid in generated copy for this brand
 }
 
-export type CampaignType = "payday" | "first_week" | "custom";
+export type CampaignType = "payday" | "first_week" | "reloan" | "custom";
 
 export interface CampaignConfig {
   id: string;

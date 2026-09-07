@@ -5,7 +5,7 @@
 // builds prompts shouldn't need to change with it. These are only the built-in starting values —
 // the "settings" table row (key `sop_<type>`) is the actual live value once an admin edits it.
 
-export const SOP_CAMPAIGN_TYPES = ["payday", "first_week", "custom"] as const;
+export const SOP_CAMPAIGN_TYPES = ["payday", "first_week", "reloan", "custom"] as const;
 export type SopCampaignType = (typeof SOP_CAMPAIGN_TYPES)[number];
 
 export const DEFAULT_SOP_TEXT: Record<SopCampaignType, string> = {
@@ -28,6 +28,17 @@ export const DEFAULT_SOP_TEXT: Record<SopCampaignType, string> = {
     - Afternoon slots: Brand Craftsmanship, Value Proposition & Lifestyle Benefit
     - Evening slots: VIP Early-Bird Privilege & Exclusive Monthly Perk Callout
     - Final slot(s) of the day: First-Batch Stock Reservation & Wishlist Alert`,
+
+  reloan: `- **RELOAN AGGRESSIVE WIN-BACK CAMPAIGN SOP** (for Reloan campaigns — customers who already repaid a previous loan):
+  * GOAL: aggressively push repeat business — get past customers who closed out a loan to take out a NEW one. High-frequency, high-urgency messaging.
+  * CRITICAL TONE RULE: "aggressive" means urgency and strong calls to action, NOT threatening or warning-style language. NEVER use "amaran" (warning) or any threatening/scare framing — this is a reward/opportunity message to a good customer, not a collections or overdue notice. Frame it as: your good repayment history has earned you fast-track approval on a new loan, not as a demand.
+  * MUST include: acknowledgement of their prior good repayment / trusted customer status, a fast/instant approval angle (since they're pre-qualified), a limited-time reloan incentive, and a direct, low-friction CTA to reapply.
+  * SLOT PROGRESSION NARRATIVE ARC PER DAY (a guiding principle — spread these beats evenly across however many slots are requested, do not assume exactly 5):
+    - Early slots: "You're Eligible Again" Reveal & Trusted Customer Recognition
+    - Mid-day slots: Fast-Track Approval / Instant Reloan Bonus Announcement
+    - Afternoon slots: Reloan Benefit Spotlight (fee discount, higher limit, priority processing)
+    - Evening slots: Urgency Countdown on the Reloan Incentive Window
+    - Final slot(s) of the day: Last-Chance Reapply Call (encouraging, not threatening)`,
 
   // No mandatory narrative by default — "custom" campaigns are driven entirely by the
   // per-campaign Custom Notes/Guidelines in the wizard unless an admin opts into a house SOP here.

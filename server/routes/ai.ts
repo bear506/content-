@@ -88,6 +88,25 @@ function trimSmsToLimit(caption: string, limit: number = 160): string {
   return trimmed.trimEnd() + ellipsis;
 }
 
+// House SMS formatting rules (hard business rules, not stylistic — see the sms-content-creator
+// skill): every SMS must open with "RM0 BrandName: ", no parentheses anywhere in the body, and
+// no em dashes/other non-GSM-7 punctuation (which silently drops the segment budget from 160 to
+// 70). Applied as a safety net regardless of whether the model's own output already followed the
+// prompt instruction — run BEFORE trimSmsToLimit so the prefix counts toward the 160 budget.
+function applySmsHouseRules(caption: string, brandName: string): string {
+  let text = (caption || "")
+    .replace(/[()]/g, "")
+    .replace(/[—–]/g, ",")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
+  const expectedPrefix = `RM0 ${brandName}:`;
+  if (!text.toUpperCase().startsWith(expectedPrefix.toUpperCase())) {
+    text = `${expectedPrefix} ${text}`;
+  }
+  return text;
+}
+
 // Helper function for fallback campaign data generation when API key is unconfigured or hits error
 function generateFallbackCampaignData(
   brands: any[],
@@ -129,6 +148,17 @@ function generateFallbackCampaignData(
     "Early Bird Expiry"
   ];
 
+  const reloanSopTitles = [
+    "You're Eligible Again Reveal",
+    "Fast-Track Approval Announcement",
+    "Reloan Benefit Spotlight",
+    "Reloan Incentive Countdown",
+    "Last-Chance Reapply Call",
+    "Bonus Reloan Reminder",
+    "Priority Processing Alert",
+    "Final Reloan Window Call"
+  ];
+
   const genericSopTitles = [
     "Morning Campaign Kickoff",
     "Midday Highlight",
@@ -138,7 +168,7 @@ function generateFallbackCampaignData(
     "Midnight Final Call"
   ];
 
-  const sopTitles = campaignType === "payday" ? paydaySopTitles : campaignType === "first_week" ? firstWeekSopTitles : genericSopTitles;
+  const sopTitles = campaignType === "payday" ? paydaySopTitles : campaignType === "first_week" ? firstWeekSopTitles : campaignType === "reloan" ? reloanSopTitles : genericSopTitles;
 
   // Per-Brand Vocabulary Archetypes for 100% Unique Wording across Brands
   const getBrandLexicon = (brand: any) => {
@@ -168,6 +198,14 @@ function generateFallbackCampaignData(
           `${name.toUpperCase()}: Mulakan bulan baharu dengan tawaran terhebat! Akses kemudahan kami sekarang`,
           `${name.toUpperCase()}: Terokai kelebihan awal bulan khas untuk pengguna tegar ${name}. Semak aplikasi hari ini`,
         ],
+        reloanHooks: [
+          `⚡ ${name}: Anda layak pinjaman baharu sekarang!`,
+          `🔁 ${name} Reload: Kelulusan pantas untuk pelanggan setia!`,
+        ],
+        reloanCaptions: [
+          `${name.toUpperCase()}: Anda dah selesai bayaran, jadi anda layak reload serta-merta! Guna kod ${brand.brandVoucherCode || 'RELOAN'} untuk kelulusan pantas`,
+          `${name.toUpperCase()}: Rekod bayaran cemerlang anda buka laluan pantas untuk pinjaman baharu. Mohon sekarang dengan kod ${brand.brandVoucherCode || 'RELOAN'}`,
+        ],
         cta: `Luluskan sekarang di ${name.toLowerCase().replace(/\s+/g, '')}.com`
       };
     } else if (id.includes("gby") || id.includes("fd") || id.includes("fxl")) {
@@ -189,6 +227,12 @@ function generateFallbackCampaignData(
         firstWeekCaptions: [
           `${name.toUpperCase()}: Perancangan awal bulan lebih tenang dengan fleksibiliti ${name}. Lawati aplikasi hari ini`,
         ],
+        reloanHooks: [
+          `🎈 ${name}: Anda dah layak reload semula, senang je!`,
+        ],
+        reloanCaptions: [
+          `${name.toUpperCase()}: Terima kasih kerana bayar tepat waktu! Anda kini layak reload dengan syarat lebih mesra. Guna kod ${brand.brandVoucherCode || 'RELOAN'} sekarang`,
+        ],
         cta: `Pilih pelan anjal di ${name.toLowerCase().replace(/\s+/g, '')}.com`
       };
     } else if (id.includes("dnh")) {
@@ -206,6 +250,12 @@ function generateFallbackCampaignData(
         ],
         firstWeekCaptions: [
           `${name.toUpperCase()}: Benteng kewangan keluarga anda sedia untuk bulan baharu bersama ${name}.`,
+        ],
+        reloanHooks: [
+          `🦸‍♂️ ${name}: Wira kewangan sedia bantu anda sekali lagi!`,
+        ],
+        reloanCaptions: [
+          `${name.toUpperCase()}: Rekod bayaran anda buktikan anda pelanggan dipercayai. Reload sekarang dengan kod istimewa ${brand.brandVoucherCode || 'RELOAN'}`,
         ],
         cta: `Dapatkan bantuan wira di ${name.toLowerCase().replace(/\s+/g, '')}.com`
       };
@@ -225,6 +275,12 @@ function generateFallbackCampaignData(
         firstWeekCaptions: [
           `${name.toUpperCase()}: Vibe awal bulan korang lebih ngam bersama promo terhangat ${name}!`,
         ],
+        reloanHooks: [
+          `🔥 ${name}: Korang dah layak reload lagi, jom!`,
+        ],
+        reloanCaptions: [
+          `${name.toUpperCase()}: Sejarah bayaran korang power, so korang layak reload cepat! Guna code ${brand.brandVoucherCode || 'RELOAN'} sekarang`,
+        ],
         cta: `Claim sekarang kat ${name.toLowerCase().replace(/\s+/g, '')}.com`
       };
     } else {
@@ -242,6 +298,12 @@ function generateFallbackCampaignData(
         ],
         firstWeekCaptions: [
           `${name.toUpperCase()}: Nikmati kemudahan kredit digital generasi baharu bersama ${name} bulan ini.`,
+        ],
+        reloanHooks: [
+          `🧠 ${name}: Data kredit anda tunjuk anda sedia untuk reload.`,
+        ],
+        reloanCaptions: [
+          `${name.toUpperCase()}: Profil kredit pintar anda layak untuk reload segera. Mohon dengan kod ${brand.brandVoucherCode || 'RELOAN'} hari ini`,
         ],
         cta: `Terokai kemudahan di ${name.toLowerCase().replace(/\s+/g, '')}.com`
       };
@@ -275,8 +337,8 @@ function generateFallbackCampaignData(
         let caption = "";
         let cta = lexicon.cta;
 
-        const hooksList = campaignType === "first_week" ? lexicon.firstWeekHooks : lexicon.paydayHooks;
-        const captionsList = campaignType === "first_week" ? lexicon.firstWeekCaptions : lexicon.paydayCaptions;
+        const hooksList = campaignType === "first_week" ? lexicon.firstWeekHooks : campaignType === "reloan" ? lexicon.reloanHooks : lexicon.paydayHooks;
+        const captionsList = campaignType === "first_week" ? lexicon.firstWeekCaptions : campaignType === "reloan" ? lexicon.reloanCaptions : lexicon.paydayCaptions;
 
         hook = hooksList[(slot - 1) % hooksList.length];
         caption = captionsList[(slot - 1) % captionsList.length];
@@ -287,8 +349,10 @@ function generateFallbackCampaignData(
 
         if (platform === "SMS") {
           // SMS has no separate hook/CTA shown to the user — fold everything into ONE
-          // self-contained message (opening line + offer/code + short CTA), capped at 160 chars.
-          caption = trimSmsToLimit(`${caption} ${lexicon.cta}`.replace(/\s+/g, " ").trim());
+          // self-contained message (opening line + offer/code + short CTA), capped at 160 chars,
+          // with the house rules (RM0 Brand: prefix, no parentheses/em dashes) applied first so
+          // the prefix counts toward that 160-char budget rather than pushing it over.
+          caption = trimSmsToLimit(applySmsHouseRules(`${caption} ${lexicon.cta}`.replace(/\s+/g, " ").trim(), brand.name || "Brand"));
           hook = caption;
           cta = "";
 
@@ -296,7 +360,7 @@ function generateFallbackCampaignData(
             hookVariants = [caption];
             for (let v = 1; v < variantCount; v++) {
               const altCaption = captionsList[(slot - 1 + v) % captionsList.length];
-              hookVariants.push(trimSmsToLimit(`${altCaption} ${lexicon.cta}`.replace(/\s+/g, " ").trim()));
+              hookVariants.push(trimSmsToLimit(applySmsHouseRules(`${altCaption} ${lexicon.cta}`.replace(/\s+/g, " ").trim(), brand.name || "Brand")));
             }
           }
         } else {
@@ -445,6 +509,8 @@ router.post("/generate", requireAuth, async (req, res) => {
       ? "Payday Sale (High urgency, payday salary reward theme, flash voucher countdowns, steep discounts, aggressive CTA)"
       : campaignType === "first_week"
       ? "First Week Collection (New monthly arrivals, fresh season drops, lifestyle aesthetic, early bird privileges, trend showcase)"
+      : campaignType === "reloan"
+      ? "Reloan Aggressive Win-Back (Repeat customers who already repaid a loan, fast-track reapproval, high-urgency but encouraging tone, never threatening)"
       : campaignTitle || "Custom Monthly Promotional Campaign";
 
   // Format custom dates string if present
@@ -505,9 +571,10 @@ CRITICAL REQUIREMENT - VOUCHER CODES / ORGANIC CAMPAIGN HANDLING:
 - If the campaign is set to ORGANIC / NO PROMO CODE (promo code is empty or "NO PROMO CODE"), DO NOT mention any promo codes or voucher codes in the message text. Set "promoCodeUsed" to "" or "NO PROMO CODE". Focus strictly on brand value, new arrival drops, product quality, and direct action CTAs.
 
 CRITICAL PLATFORM & FORMAT SPECIFICATIONS:
-- **SMS Messages**: STRICT MANDATE — an SMS post has NO separate title, hook, or CTA. The "caption" field IS the entire message the customer receives: it must open with the attention-grabbing line, state the offer, embed the unique brand promo code, and close with a short call to action — ALL WITHIN 160 CHARACTERS TOTAL (1 GSM segment). Count characters carefully before finalizing — anything over the limit is automatically cut off. Set "hook" and "cta" to the exact same text as "caption" for SMS posts (they are never shown separately). Extremely punchy and urgent! NO HASHTAGS (#) in SMS copy!
-- **Web Push Notifications**: STRICT MANDATE — Web Push keeps title, hook, caption, and cta as separate fields. Titles, hooks, and message captions MUST feature RICH VIBRANT EMOJIS (e.g. 🔔, ⚡, 💸, 🚨, 🛍️, 🔥, 🎁, 🚀, ⏳, 💥, 📦, 👉) for high engagement! NO HASHTAGS (#) in Web Push copy!
+- **SMS Messages**: STRICT MANDATE — an SMS post has NO separate title, hook, or CTA. The "caption" field IS the entire message the customer receives: it MUST START WITH "RM0 [BrandName]: " (the brand's exact name as given below, this exact prefix format, always), then the attention-grabbing line, the offer, the embedded unique brand promo code, and a short call to action — ALL WITHIN 160 CHARACTERS TOTAL INCLUDING THE PREFIX (1 GSM segment). Count characters carefully before finalizing — anything over the limit is automatically cut off. Set "hook" and "cta" to the exact same text as "caption" for SMS posts (they are never shown separately). NO PARENTHESES anywhere in SMS text — rephrase instead (e.g. "kod X, RM8 off" not "kod X (RM8 off)"). NO em dashes or other non-GSM-7 punctuation (use "," or "." instead of "—") — a single non-GSM-7 character silently drops the per-segment budget from 160 to 70. Extremely punchy and urgent! NO HASHTAGS (#) in SMS copy!
+- **Web Push Notifications**: STRICT MANDATE — Web Push keeps title, hook, caption, and cta as separate fields. Titles, hooks, and message captions MUST feature RICH VIBRANT EMOJIS (e.g. 🔔, ⚡, 💸, 🚨, 🛍️, 🔥, 🎁, 🚀, ⏳, 💥, 📦, 👉) spread through the middle and end of the message, not just the start, for high engagement! NO HASHTAGS (#) in Web Push copy!
 - **HASHTAGS RULE**: DO NOT include any hashtags (#something) in SMS or Web Push text captions. Leave hashtags array as empty array [].
+- **NEVER USE "amaran" (WARNING) OR THREATENING PHRASING for KYC, reloan, or before-due-date content types** — these read as encouraging/informational, not as a threat, regardless of how urgent the campaign is meant to feel. (This restriction does not apply to overdue/collections content sent after a due date has already passed.)
 
 CONTENT STRUCTURE:
 1. For EACH brand provided, generate exactly ${durationDays} days of campaign messaging.
@@ -597,8 +664,10 @@ ${variantCount > 1 ? `  - hookVariants: string[] (EXACTLY ${variantCount} distin
         // Remove any #hashtags from SMS or Web Push caption
         caption = caption.replace(/#[a-zA-Z0-9_]+/g, "").trim();
 
-        // Enforce 160 character limit for SMS (trims at a word boundary, not mid-word)
+        // House SMS rules (RM0 Brand: prefix, no parentheses/em dashes) then the 160-char trim —
+        // in that order, so the prefix counts toward the budget rather than pushing it over.
         if (isSms) {
+          caption = applySmsHouseRules(caption, brandPlan.brandName || post.brandName || "Brand");
           caption = trimSmsToLimit(caption);
         }
 
@@ -617,7 +686,9 @@ ${variantCount > 1 ? `  - hookVariants: string[] (EXACTLY ${variantCount} distin
           hook = caption;
           cta = "";
           if (hookVariants) {
-            hookVariants = hookVariants.map((h) => trimSmsToLimit(h.replace(/#[a-zA-Z0-9_]+/g, "").trim()));
+            hookVariants = hookVariants.map((h) =>
+              trimSmsToLimit(applySmsHouseRules(h.replace(/#[a-zA-Z0-9_]+/g, "").trim(), brandPlan.brandName || post.brandName || "Brand"))
+            );
           }
         }
         if (hookVariants && hookVariants.length <= 1) hookVariants = undefined;
@@ -896,7 +967,7 @@ Instruction from user: "${instruction}"
 Modify and improve this post according to the instruction.
 ${
   isSms
-    ? `This is an SMS message — return the ENTIRE updated message in "caption" only, self-contained (opening line, offer, promo code, and CTA all included), 160 characters or fewer. Set "hook" and "cta" to the same text as "caption".`
+    ? `This is an SMS message — return the ENTIRE updated message in "caption" only, self-contained (opening line, offer, promo code, and CTA all included). It MUST start with "RM0 ${brandName || "Brand"}: ", contain NO parentheses and NO em dashes, and be 160 characters or fewer INCLUDING that prefix. Set "hook" and "cta" to the same text as "caption".`
     : `Return updated JSON with keys: title, hook, caption, cta, visualPrompt, hashtags (array of strings).`
 }`;
 
@@ -925,7 +996,8 @@ ${
 
     const updated = JSON.parse(response.text || "{}");
     if (isSms) {
-      updated.caption = trimSmsToLimit((updated.caption || "").replace(/#[a-zA-Z0-9_]+/g, "").trim());
+      const cleaned = applySmsHouseRules((updated.caption || "").replace(/#[a-zA-Z0-9_]+/g, "").trim(), brandName || "Brand");
+      updated.caption = trimSmsToLimit(cleaned);
       updated.hook = updated.caption;
       updated.cta = "";
       updated.hashtags = [];

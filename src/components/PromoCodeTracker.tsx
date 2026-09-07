@@ -72,7 +72,7 @@ export const PromoCodeTracker: React.FC<PromoCodeTrackerProps> = ({
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [newCode, setNewCode] = useState("");
   const [newCampaignTitle, setNewCampaignTitle] = useState("");
-  const [newCampaignType, setNewCampaignType] = useState<"payday" | "first_week" | "custom">("custom");
+  const [newCampaignType, setNewCampaignType] = useState<"payday" | "first_week" | "reloan" | "custom">("custom");
   const [newStartDate, setNewStartDate] = useState("2026-08-25");
   const [newMonthYear, setNewMonthYear] = useState("August 2026");
   const [newValidUntil, setNewValidUntil] = useState("");
@@ -305,6 +305,7 @@ export const PromoCodeTracker: React.FC<PromoCodeTrackerProps> = ({
                 <option value="all">All Campaign Types</option>
                 <option value="payday">Payday Sale</option>
                 <option value="first_week">First Week Collection</option>
+                <option value="reloan">Reloan Aggressive</option>
                 <option value="custom">Custom / Festive</option>
               </select>
 
@@ -356,11 +357,12 @@ export const PromoCodeTracker: React.FC<PromoCodeTrackerProps> = ({
                   <label className="block text-[10px] text-slate-300 mb-1">Campaign Type</label>
                   <select
                     value={newCampaignType}
-                    onChange={(e) => setNewCampaignType(e.target.value as "payday" | "first_week" | "custom")}
+                    onChange={(e) => setNewCampaignType(e.target.value as "payday" | "first_week" | "reloan" | "custom")}
                     className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-bold text-white focus:outline-none focus:border-amber-500"
                   >
                     <option value="payday">Payday Sale</option>
                     <option value="first_week">First Week Collection</option>
+                    <option value="reloan">Reloan Aggressive</option>
                     <option value="custom">Custom / Festive</option>
                   </select>
                 </div>
