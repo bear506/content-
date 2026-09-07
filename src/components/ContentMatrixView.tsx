@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Search, Filter, LayoutList, Calendar, CheckCircle2, Clock, Building2, Tag, ArrowUpDown, RefreshCw, Layers, ListOrdered, Sparkles, Copy, Check, Trash2, ShieldCheck, AlertTriangle, BookmarkPlus, X } from "lucide-react";
-import { Brand, BrandContentPlan, Post, PostStatus } from "../types";
+import { Brand, BrandContentPlan, CampaignResult, Post, PostStatus } from "../types";
 import type { Role } from "../lib/api";
 import { PostCard } from "./PostCard";
 import { findDuplicateHooks } from "../lib/duplicateDetector";
@@ -9,9 +9,19 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import { Tooltip } from "./Tooltip";
 import { BrandChipFilter } from "./BrandChipFilter";
 
+const CAMPAIGN_TYPE_META: Record<string, { label: string; className: string }> = {
+  payday: { label: "Payday", className: "bg-amber-950/60 text-amber-300 border-amber-800/60" },
+  first_week: { label: "First Week", className: "bg-violet-950/60 text-violet-300 border-violet-800/60" },
+  reloan: { label: "Reloan", className: "bg-rose-950/60 text-rose-300 border-rose-800/60" },
+  custom: { label: "Custom", className: "bg-sky-950/60 text-sky-300 border-sky-800/60" },
+};
+
 interface ContentMatrixViewProps {
   brands: Brand[];
   brandsData: BrandContentPlan[];
+  /** Every saved campaign — used only to build the "which brand is running what" summary strip,
+   *  independent of whichever single campaign is currently open below. */
+  savedCampaigns?: CampaignResult[];
   selectedBrandId: string;
   onSelectBrandId: (id: string) => void;
   onUpdatePost: (updatedPost: Post) => void;
@@ -36,6 +46,7 @@ interface ContentMatrixViewProps {
 export const ContentMatrixView: React.FC<ContentMatrixViewProps> = ({
   brands,
   brandsData,
+  savedCampaigns = [],
   selectedBrandId,
   onSelectBrandId,
   onUpdatePost,
@@ -63,8 +74,6 @@ export const ContentMatrixView: React.FC<ContentMatrixViewProps> = ({
   const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [showDuplicatesPanel, setShowDuplicatesPanel] = useState(false);
-  const [showConflictsPanel, setShowConflictsPanel] = useState(false);
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const [templateName, setTemplateName] = useState("");
   const [showTemplateInput, setShowTemplateInput] = useState(false);
@@ -188,6 +197,37 @@ export const ContentMatrixView: React.FC<ContentMatrixViewProps> = ({
 
   const duplicateGroups = React.useMemo(() => findDuplicateHooks(allPosts), [allPosts]);
   const slotConflicts = React.useMemo(() => findSlotConflicts(allPosts), [allPosts]);
+  const totalIssueCount = duplicateGroups.length + slotConflicts.length;
+  const [showIssuesPanel, setShowIssuesPanel] = useState(false);
+
+  // For each brand: its code + discount under the MOST RECENT campaign of each type (Payday,
+  // First Week, Reloan, Custom) that actually includes that brand — independent of which single
+  // campaign is open below, so "what's running for this brand right now" is visible at a glance.
+  const brandCampaignSummary = useMemo(() => {
+    const latestByType = new Map<string, CampaignResult>();
+    for (const c of savedCampaigns) {
+      const t = c.config.campaignType;
+      const existing = latestByType.get(t);
+      if (!existing || c.createdAt > existing.createdAt) latestByType.set(t, c);
+    }
+
+    const map = new Map<string, { type: string; code: string; discount: string }[]>();
+    for (const brand of brands) {
+      const entries: { type: string; code: string; discount: string }[] = [];
+      for (const [type, campaign] of latestByType) {
+        const inCampaign = campaign.brandsData.some((bd) => bd.brandId === brand.id);
+        const code = campaign.config.brandVoucherCodes?.[brand.id];
+        if (!inCampaign || !code || code === "NO PROMO CODE") continue;
+        entries.push({
+          type,
+          code,
+          discount: campaign.config.brandDiscountDetails?.[brand.id] || campaign.config.discountDetails || "",
+        });
+      }
+      if (entries.length > 0) map.set(brand.id, entries);
+    }
+    return map;
+  }, [savedCampaigns, brands]);
 
   const getBrandColor = (bId: string) => {
     const found = brands.find((b) => b.id === bId);
@@ -429,6 +469,38 @@ export const ContentMatrixView: React.FC<ContentMatrixViewProps> = ({
           </div>
         </div>
 
+        {/* What's running per brand, across every saved campaign — not just the one open below */}
+        {brandCampaignSummary.size > 0 && (
+          <div className="pt-1">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2">
+              Active Promo Codes by Brand ({brandCampaignSummary.size})
+            </span>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+              {brands
+                .filter((b) => brandCampaignSummary.has(b.id))
+                .map((b) => (
+                  <div
+                    key={b.id}
+                    className="bg-slate-950/80 border border-slate-800 rounded-lg p-2 space-y-1"
+                    style={{ borderLeftWidth: 3, borderLeftColor: b.brandColor || "#6366f1" }}
+                  >
+                    <span className="text-xs font-bold text-white truncate block">{b.name}</span>
+                    {brandCampaignSummary.get(b.id)!.map((entry) => {
+                      const meta = CAMPAIGN_TYPE_META[entry.type] || CAMPAIGN_TYPE_META.custom;
+                      return (
+                        <div key={entry.type} className="flex items-center gap-1 flex-wrap">
+                          <span className={`text-[9px] font-bold px-1 rounded border shrink-0 ${meta.className}`}>{meta.label}</span>
+                          <span className="text-[10px] font-mono font-bold text-amber-400 truncate">{entry.code}</span>
+                          {entry.discount && <span className="text-[10px] text-emerald-300 truncate">{entry.discount}</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
+
         {/* Direct, always-visible brand filter — one click per brand, no dropdown */}
         <div className="pt-2">
           <BrandChipFilter
@@ -539,83 +611,77 @@ export const ContentMatrixView: React.FC<ContentMatrixViewProps> = ({
           </div>
         </div>
 
-      {/* Cross-Brand Duplicate Hook Warning */}
-      {duplicateGroups.length > 0 && (
-        <div className="bg-amber-950/40 border border-amber-800/60 rounded-2xl overflow-hidden">
+      {/* Duplicate hooks + scheduling conflicts, collapsed under one toggle instead of two
+          separate always-visible banners — the single most common source of "this page feels
+          messy" when there's nothing actually wrong (both start at 0 for most campaigns). */}
+      {totalIssueCount > 0 && (
+        <div className="bg-slate-900/70 border border-slate-800 rounded-2xl overflow-hidden">
           <button
             type="button"
-            onClick={() => setShowDuplicatesPanel(!showDuplicatesPanel)}
+            onClick={() => setShowIssuesPanel(!showIssuesPanel)}
             className="w-full flex items-center justify-between gap-2 px-4 py-3 text-left cursor-pointer"
           >
             <span className="flex items-center gap-2 text-xs font-bold text-amber-300">
-              <Copy className="w-4 h-4" />
-              <span>
-                {duplicateGroups.length} potential duplicate hook{duplicateGroups.length > 1 ? "s" : ""} found across brands
-              </span>
+              <AlertTriangle className="w-4 h-4" />
+              <span>{totalIssueCount} issue{totalIssueCount > 1 ? "s" : ""} found — duplicate hooks or scheduling conflicts</span>
             </span>
-            <span className="text-[10px] text-amber-400 font-mono">{showDuplicatesPanel ? "Hide" : "Show"}</span>
+            <span className="text-[10px] text-slate-400 font-mono">{showIssuesPanel ? "Hide" : "Show"}</span>
           </button>
-          {showDuplicatesPanel && (
-            <div className="px-4 pb-4 space-y-3">
-              {duplicateGroups.map((group, idx) => (
-                <div key={idx} className="bg-slate-950/60 border border-amber-900/50 rounded-xl p-3 space-y-1.5">
-                  <div className="text-[10px] font-mono text-amber-500">
-                    ~{Math.round(group.similarity * 100)}% similar wording across {group.posts.length} brands
-                  </div>
-                  {group.posts.map((p) => (
-                    <div key={p.id} className="text-xs text-slate-300 flex items-start gap-2">
-                      <span
-                        className="text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 mt-0.5"
-                        style={{ backgroundColor: getBrandColor(p.brandId), color: "#0f172a" }}
-                      >
-                        {p.brandName}
-                      </span>
-                      <span className="italic">"{p.hook}"</span>
+          {showIssuesPanel && (
+            <div className="px-4 pb-4 space-y-4">
+              {duplicateGroups.length > 0 && (
+                <div className="space-y-2">
+                  <span className="text-[11px] font-bold text-amber-300 flex items-center gap-1.5">
+                    <Copy className="w-3.5 h-3.5" />
+                    {duplicateGroups.length} potential duplicate hook{duplicateGroups.length > 1 ? "s" : ""} across brands
+                  </span>
+                  {duplicateGroups.map((group, idx) => (
+                    <div key={idx} className="bg-slate-950/60 border border-amber-900/50 rounded-xl p-3 space-y-1.5">
+                      <div className="text-[10px] font-mono text-amber-500">
+                        ~{Math.round(group.similarity * 100)}% similar wording across {group.posts.length} brands
+                      </div>
+                      {group.posts.map((p) => (
+                        <div key={p.id} className="text-xs text-slate-300 flex items-start gap-2">
+                          <span
+                            className="text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 mt-0.5"
+                            style={{ backgroundColor: getBrandColor(p.brandId), color: "#0f172a" }}
+                          >
+                            {p.brandName}
+                          </span>
+                          <span className="italic">"{p.hook}"</span>
+                        </div>
+                      ))}
                     </div>
                   ))}
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+              )}
 
-      {/* Same-Slot Cross-Brand Conflict Warning */}
-      {slotConflicts.length > 0 && (
-        <div className="bg-rose-950/40 border border-rose-800/60 rounded-2xl overflow-hidden">
-          <button
-            type="button"
-            onClick={() => setShowConflictsPanel(!showConflictsPanel)}
-            className="w-full flex items-center justify-between gap-2 px-4 py-3 text-left cursor-pointer"
-          >
-            <span className="flex items-center gap-2 text-xs font-bold text-rose-300">
-              <AlertTriangle className="w-4 h-4" />
-              <span>
-                {slotConflicts.length} scheduling conflict{slotConflicts.length > 1 ? "s" : ""} — multiple brands sending at the exact same time
-              </span>
-            </span>
-            <span className="text-[10px] text-rose-400 font-mono">{showConflictsPanel ? "Hide" : "Show"}</span>
-          </button>
-          {showConflictsPanel && (
-            <div className="px-4 pb-4 space-y-3">
-              {slotConflicts.map((group) => (
-                <div key={group.key} className="bg-slate-950/60 border border-rose-900/50 rounded-xl p-3 space-y-1.5">
-                  <div className="text-[10px] font-mono text-rose-400">
-                    {group.dateLabel} • {group.timeSlot} • {group.platform}
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {group.posts.map((p) => (
-                      <span
-                        key={p.id}
-                        className="text-[10px] font-bold px-2 py-0.5 rounded"
-                        style={{ backgroundColor: getBrandColor(p.brandId), color: "#0f172a" }}
-                      >
-                        {p.brandName}
-                      </span>
-                    ))}
-                  </div>
+              {slotConflicts.length > 0 && (
+                <div className="space-y-2">
+                  <span className="text-[11px] font-bold text-rose-300 flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    {slotConflicts.length} scheduling conflict{slotConflicts.length > 1 ? "s" : ""} — multiple brands sending at the exact same time
+                  </span>
+                  {slotConflicts.map((group) => (
+                    <div key={group.key} className="bg-slate-950/60 border border-rose-900/50 rounded-xl p-3 space-y-1.5">
+                      <div className="text-[10px] font-mono text-rose-400">
+                        {group.dateLabel} • {group.timeSlot} • {group.platform}
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {group.posts.map((p) => (
+                          <span
+                            key={p.id}
+                            className="text-[10px] font-bold px-2 py-0.5 rounded"
+                            style={{ backgroundColor: getBrandColor(p.brandId), color: "#0f172a" }}
+                          >
+                            {p.brandName}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
           )}
         </div>

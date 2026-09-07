@@ -101,6 +101,7 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
         <ContentMatrixView
           brands={brands}
           brandsData={campaignBrandsData}
+          savedCampaigns={savedCampaigns}
           selectedBrandId={selectedBrandId}
           onSelectBrandId={onSelectBrandId}
           onUpdatePost={onUpdatePost}
